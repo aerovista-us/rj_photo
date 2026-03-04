@@ -74,7 +74,12 @@
       height: clamp(320px, 52vh, 520px);
       background: #000;
     }
-    #panoStage canvas{ display:block; width:100% !important; height:100% !important; }
+    #panoStage canvas{
+      display:block;
+      width:100% !important;
+      height:100% !important;
+      touch-action: none; /* allow drag on touch devices */
+    }
     .panoHint{
       position:absolute; left: 12px; bottom: 12px;
       padding: 8px 10px; border-radius: 12px;
@@ -221,9 +226,9 @@
     <header>
       <div class="title">
         <h1>RJ’s Property Management • 3D View + Photos</h1>
-        <p>Demo add-on: immersive panorama for “wow”, plus fast photo browsing for the practical stuff.</p>
+        <p>Immersive panorama plus fast photo browsing.</p>
       </div>
-      <div class="badge">Demo land • single-file page • easy drop-in</div>
+      <div class="badge">single-file page • easy drop-in • video also available. </div>
     </header>
 
     <!-- PANO -->
@@ -358,7 +363,7 @@
 
     renderer.domElement.addEventListener("pointerdown", (e) => {
       isDown = true;
-      renderer.domElement.setPointerCapture(e.pointerId);
+      renderer.domElement.setPointerCapture?.(e.pointerId);
       startX = e.clientX;
       startY = e.clientY;
       startLon = lon;
@@ -375,6 +380,31 @@
     });
 
     renderer.domElement.addEventListener("pointerup", () => { isDown = false; });
+
+    // Touch fallback for older mobile browsers
+    renderer.domElement.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      isDown = true;
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      startLon = lon;
+      startLat = lat;
+    }, { passive: false });
+
+    renderer.domElement.addEventListener("touchmove", (e) => {
+      if (!isDown || e.touches.length !== 1) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      lon = startLon - dx * 0.12;
+      lat = startLat + dy * 0.12;
+      updateLook();
+    }, { passive: false });
+
+    renderer.domElement.addEventListener("touchend", () => { isDown = false; });
 
     renderer.domElement.addEventListener("wheel", (e) => {
       e.preventDefault();
