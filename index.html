@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>RJ Property • 3D View + Photo Gallery (Demo)</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --card: rgba(255,255,255,.06);
+      --stroke: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 800px at 20% 0%, rgba(82,140,255,.18), transparent 55%),
+                  radial-gradient(900px 600px at 80% 20%, rgba(0,255,190,.10), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+    }
+    a{ color: inherit; }
+    .wrap{ max-width: 1100px; margin: 0 auto; padding: 22px 14px 60px; }
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+      padding: 8px 4px 16px;
+    }
+    .title h1{ margin:0; font-size: clamp(18px, 2.2vw, 28px); letter-spacing:.2px; }
+    .title p{ margin:6px 0 0; color: var(--muted); font-size: 13px; }
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 12px; border-radius: 999px;
+      background: var(--card); border: 1px solid var(--stroke);
+      color: var(--muted); font-size: 12px;
+    }
+
+    /* Pano card */
+    .card{
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panoHead{
+      padding: 14px 14px 10px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .panoHead .left{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .panoHead .left b{ font-size: 14px; }
+    .panoHead .left span{ font-size: 12px; color: var(--muted); }
+    .controls{
+      display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;
+    }
+    .btn{
+      cursor:pointer;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .btn:hover{ background: rgba(255,255,255,.12); }
+    #panoStage{
+      position:relative;
+      height: clamp(320px, 52vh, 520px);
+      background: #000;
+    }
+    #panoStage canvas{ display:block; width:100% !important; height:100% !important; }
+    .panoHint{
+      position:absolute; left: 12px; bottom: 12px;
+      padding: 8px 10px; border-radius: 12px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.12);
+      font-size: 12px; color: rgba(255,255,255,.86);
+      backdrop-filter: blur(8px);
+      user-select:none;
+    }
+
+    /* Section */
+    .section{
+      margin-top: 18px;
+      padding: 14px 4px 0;
+    }
+    .section h2{
+      margin:0 0 6px;
+      font-size: 16px;
+    }
+    .section p{
+      margin:0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* Gallery */
+    .gallery{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+    }
+    .shot{
+      grid-column: span 4;
+      border-radius: 16px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      position:relative;
+      min-height: 160px;
+    }
+    .shot img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      transform: scale(1.01);
+      transition: transform .18s ease, filter .18s ease;
+      filter: saturate(1.04) contrast(1.02);
+    }
+    .shot:hover img{ transform: scale(1.04); }
+    .cap{
+      position:absolute;
+      inset: auto 10px 10px 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.42);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      display:flex; justify-content:space-between; gap:10px;
+      color: rgba(255,255,255,.9);
+    }
+    .cap span{ color: rgba(255,255,255,.75); }
+
+    @media (max-width: 900px){
+      .shot{ grid-column: span 6; }
+    }
+    @media (max-width: 560px){
+      header{ flex-direction:column; align-items:flex-start; }
+      .shot{ grid-column: span 12; }
+    }
+
+    /* Lightbox */
+    .lb{
+      position:fixed; inset:0; z-index: 9999;
+      display:none;
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(8px);
+      align-items:center; justify-content:center;
+      padding: 14px;
+    }
+    .lb.open{ display:flex; }
+    .lbCard{
+      width: min(980px, 100%);
+      max-height: min(86vh, 860px);
+      border-radius: 18px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(10,14,20,.85);
+      box-shadow: var(--shadow);
+      display:flex; flex-direction:column;
+    }
+    .lbTop{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      gap: 10px;
+    }
+    .lbTop b{ font-size: 13px; }
+    .lbTop span{ color: var(--muted); font-size: 12px; }
+    .lbBtns{ display:flex; gap:8px; }
+    .lbBody{
+      position:relative;
+      display:flex; align-items:center; justify-content:center;
+      padding: 10px;
+      height: 100%;
+    }
+    .lbBody img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      max-height: 72vh;
+      border-radius: 14px;
+      background: rgba(0,0,0,.35);
+    }
+    .navBtn{
+      position:absolute;
+      top:50%; transform: translateY(-50%);
+      width: 42px; height: 42px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer;
+      user-select:none;
+    }
+    .navBtn:hover{ background: rgba(255,255,255,.14); }
+    .navBtn.left{ left: 14px; }
+    .navBtn.right{ right: 14px; }
+
+    footer{
+      margin-top: 18px;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+      padding: 0 4px;
+    }
+    code{ color: rgba(255,255,255,.9); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>RJ’s Property Management • 3D View + Photos</h1>
+        <p>Demo add-on: immersive panorama for “wow”, plus fast photo browsing for the practical stuff.</p>
+      </div>
+      <div class="badge">Demo land • single-file page • easy drop-in</div>
+    </header>
+
+    <!-- PANO -->
+    <div class="card">
+      <div class="panoHead">
+        <div class="left">
+          <b>3D Panorama View</b>
+          <span id="panoMeta">Loading panorama…</span>
+        </div>
+        <div class="controls">
+          <button class="btn" id="resetBtn">Reset</button>
+          <button class="btn" id="autoBtn" aria-pressed="false">Auto-rotate: Off</button>
+          <button class="btn" id="fsBtn">Fullscreen</button>
+        </div>
+      </div>
+      <div id="panoStage">
+        <div class="panoHint">Drag to look • Wheel/pinch to zoom</div>
+      </div>
+    </div>
+
+    <!-- GALLERY -->
+    <div class="section">
+      <h2>Photo Gallery</h2>
+      <p>Standard listing photos (tap to expand). Replace the <code>photos</code> array in the script with your actual listing images.</p>
+
+      <div class="gallery" id="gallery"></div>
+    </div>
+
+    <footer>
+      Tip: if images won’t load from <code>file://</code>, you can view the hosted demo at <code>https://aerovista-us.github.io/rj_photo/</code>, or run <code>python -m http.server 8080</code> in this folder and open <code>http://localhost:8080/index.html</code>.
+    </footer>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <div class="lbCard">
+      <div class="lbTop">
+        <div>
+          <b id="lbTitle">Photo</b><br/>
+          <span id="lbSub">1 of 1</span>
+        </div>
+        <div class="lbBtns">
+          <button class="btn" id="dlBtn">Download</button>
+          <button class="btn" id="closeBtn">Close</button>
+        </div>
+      </div>
+      <div class="lbBody">
+        <div class="navBtn left" id="prevBtn" title="Previous">‹</div>
+        <img id="lbImg" alt="Expanded photo"/>
+        <div class="navBtn right" id="nextBtn" title="Next">›</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+    // =========================
+    // 1) PANORAMA CONFIG
+    // =========================
+    const PANORAMA_URL = "./DJI_20260303164059_0015_D.JPG"; // your pano
+
+    const panoStage = document.getElementById("panoStage");
+    const panoMeta  = document.getElementById("panoMeta");
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, panoStage.clientWidth / panoStage.clientHeight, 0.1, 1100);
+    camera.position.set(0, 0, 0.1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(panoStage.clientWidth, panoStage.clientHeight);
+    panoStage.appendChild(renderer.domElement);
+
+    const sphereGeo = new THREE.SphereGeometry(500, 96, 96);
+    sphereGeo.scale(-1, 1, 1);
+
+    const manager = new THREE.LoadingManager();
+    const loader = new THREE.TextureLoader(manager);
+
+    let autoRotate = false;
+    let sphereMesh;
+
+    manager.onLoad = () => {};
+    manager.onError = () => { panoMeta.textContent = "Failed to load panorama (check path)."; };
+
+    loader.load(
+      PANORAMA_URL,
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+        const mat = new THREE.MeshBasicMaterial({ map: texture });
+        sphereMesh = new THREE.Mesh(sphereGeo, mat);
+        scene.add(sphereMesh);
+
+        const img = texture.image;
+        panoMeta.textContent = `Loaded: ${img.width}×${img.height} • drag to look around`;
+      },
+      undefined,
+      () => { panoMeta.textContent = "Couldn’t load pano. Try running a local server."; }
+    );
+
+    // Simple look controls
+    let isDown = false;
+    let lon = 0, lat = 0;
+    let startX = 0, startY = 0;
+    let startLon = 0, startLat = 0;
+
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+    function updateLook() {
+      lat = clamp(lat, -85, 85);
+      const phi = THREE.MathUtils.degToRad(90 - lat);
+      const theta = THREE.MathUtils.degToRad(lon);
+
+      const x = 500 * Math.sin(phi) * Math.cos(theta);
+      const y = 500 * Math.cos(phi);
+      const z = 500 * Math.sin(phi) * Math.sin(theta);
+      camera.lookAt(x, y, z);
+    }
+
+    function setFov(fov) {
+      camera.fov = clamp(fov, 35, 95);
+      camera.updateProjectionMatrix();
+    }
+
+    setFov(75);
+    updateLook();
+
+    renderer.domElement.addEventListener("pointerdown", (e) => {
+      isDown = true;
+      renderer.domElement.setPointerCapture(e.pointerId);
+      startX = e.clientX;
+      startY = e.clientY;
+      startLon = lon;
+      startLat = lat;
+    });
+
+    renderer.domElement.addEventListener("pointermove", (e) => {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      lon = startLon - dx * 0.12;
+      lat = startLat + dy * 0.12;
+      updateLook();
+    });
+
+    renderer.domElement.addEventListener("pointerup", () => { isDown = false; });
+
+    renderer.domElement.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      setFov(camera.fov + (e.deltaY * 0.02));
+    }, { passive: false });
+
+    // Buttons
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      lon = 0; lat = 0; setFov(75); updateLook();
+    });
+
+    document.getElementById("autoBtn").addEventListener("click", (e) => {
+      autoRotate = !autoRotate;
+      e.currentTarget.textContent = `Auto-rotate: ${autoRotate ? "On" : "Off"}`;
+      e.currentTarget.setAttribute("aria-pressed", String(autoRotate));
+    });
+
+    document.getElementById("fsBtn").addEventListener("click", () => {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) el.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    });
+
+    // Resize
+    window.addEventListener("resize", () => {
+      const w = panoStage.clientWidth;
+      const h = panoStage.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (autoRotate && !isDown) {
+        lon -= 0.03; // slow idle spin
+        updateLook();
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // =========================
+    // 2) GALLERY CONFIG
+    // =========================
+    // Replace these with RJ listing photos (paths can be ./assets/.. or URLs)
+    const photos = [
+      { src: "./photo-01.jpg", title: "Living Room", note: "Bright, open layout" },
+      { src: "./photo-02.jpg", title: "Kitchen",     note: "Updated appliances" },
+      { src: "./photo-03.jpg", title: "Bedroom",     note: "Large closet" },
+      { src: "./photo-04.jpg", title: "Bathroom",    note: "Clean tile + storage" },
+      { src: "./photo-05.jpg", title: "Backyard",    note: "Fenced outdoor space" },
+      { src: "./photo-06.jpg", title: "Exterior",    note: "Great curb appeal" },
+    ];
+
+    const galleryEl = document.getElementById("gallery");
+
+    function buildGallery(){
+      galleryEl.innerHTML = "";
+      photos.forEach((p, idx) => {
+        const div = document.createElement("div");
+        div.className = "shot";
+        div.innerHTML = `
+          <img loading="lazy" src="${p.src}" alt="${escapeHtml(p.title || "Photo")}" />
+          <div class="cap">
+            <div>${escapeHtml(p.title || "Photo")}</div>
+            <span>${escapeHtml(p.note || "")}</span>
+          </div>
+        `;
+        div.addEventListener("click", () => openLightbox(idx));
+        galleryEl.appendChild(div);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[c]));
+    }
+
+    buildGallery();
+
+    // =========================
+    // 3) LIGHTBOX
+    // =========================
+    const lb = document.getElementById("lb");
+    const lbImg = document.getElementById("lbImg");
+    const lbTitle = document.getElementById("lbTitle");
+    const lbSub = document.getElementById("lbSub");
+    const dlBtn = document.getElementById("dlBtn");
+
+    let current = 0;
+
+    function renderLightbox(){
+      const p = photos[current];
+      lbImg.src = p.src;
+      lbTitle.textContent = p.title || "Photo";
+      lbSub.textContent = `${current + 1} of ${photos.length}`;
+      dlBtn.onclick = () => {
+        const a = document.createElement("a");
+        a.href = p.src;
+        a.download = (p.title ? p.title.replace(/\s+/g,"-").toLowerCase() : "photo") + ".jpg";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+    }
+
+    function openLightbox(index){
+      current = index;
+      renderLightbox();
+      lb.classList.add("open");
+    }
+    function closeLightbox(){
+      lb.classList.remove("open");
+      lbImg.src = "";
+    }
+    function prev(){
+      current = (current - 1 + photos.length) % photos.length;
+      renderLightbox();
+    }
+    function next(){
+      current = (current + 1) % photos.length;
+      renderLightbox();
+    }
+
+    document.getElementById("closeBtn").addEventListener("click", closeLightbox);
+    document.getElementById("prevBtn").addEventListener("click", prev);
+    document.getElementById("nextBtn").addEventListener("click", next);
+
+    lb.addEventListener("click", (e) => {
+      if (e.target === lb) closeLightbox();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!lb.classList.contains("open")) return;
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    });
+  </script>
+</body>
+</html>
